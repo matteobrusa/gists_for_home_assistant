@@ -37,5 +37,5 @@ select * from v_daily_consumption where created > ifnull( (select max(created) f
 select * from states where entity_id="sensor.synth";
 
 # run this in a cronjob
-sqlite3 .homeassistant/home-assistant_v2.db 'insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) select * from v_daily_consumption where created > (select max(created) from states where entity_id="sensor.synth");'
+sqlite3 .homeassistant/home-assistant_v2.db 'insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) select * from v_daily_consumption where created > ifnull( (select max(created) from states where entity_id="sensor.synth"),0 );
 
