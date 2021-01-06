@@ -58,3 +58,6 @@ switch:
         command_state: 'curl -s 192.168.1.98:8080/user/var/120/10101/0/0/12080 | grep  -c "1803"'
         value_template: '{{ value | int == 1 }}' 
 ```
+
+Here's how it can look like
+![alt text](https://raw.githubusercontent.com/matteobrusa/gists_for_home_assistant/main/ETA%20dashboard.png "ETA touch dashboard")
