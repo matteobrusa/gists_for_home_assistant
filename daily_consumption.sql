@@ -1,18 +1,12 @@
 
+# test it with the the sqlite3 client attached to your home assistant db
+
 select * from states where entity_id="sensor.eta_total_consumption";
-
-select substring(created,0,8) from states where entity_id="sensor.eta_total_consumption";
-
-select distinct substr(created,0,11) from states where entity_id="sensor.eta_total_consumption";
-
-
 
 select state_id,created,state from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
 
-
-select state_id,created,state, ( state*10 -LAG ( state, 1, 0 ) OVER ( ORDER BY created)*10 )/10 from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
-
-select state_id,created,state, ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10 from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
+select state_id,created,state, ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10 
+from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
 
 
 delete from states where entity_id="sensor.synth";
