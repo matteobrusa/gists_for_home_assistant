@@ -9,14 +9,8 @@ select state_id,created,state, ( state*10 -LAG ( state, 1, state ) OVER ( ORDER 
 from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
 
 
-delete from states where entity_id="sensor.synth";
-insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) 
-select  "sensor","sensor.synth", ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10, '{"unit_of_measurement": "kg"}', last_changed, last_updated,created    
-from states 
-where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) 
-and created > (select max(created) from states where entity_id="sensor.synth");
 
-
+# this view shows the daily consumption, to be injected back in the db as 'sensor.synth'
 
 create view v_daily_consumption as 
 select  "sensor","sensor.synth", ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10, '{"unit_of_measurement": "kg"}', last_changed, last_updated,created    
@@ -34,10 +28,13 @@ insert into states (domain, entity_id, state, attributes,last_changed,last_updat
 select * from v_daily_consumption limit 1;
 
 
-insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) select * from v_daily_consumption where created > (select max(created) from states where entity_id="sensor.synth");
+# make sure there's a first entry, otherwise the incremental selector will fail
+
+insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) 
+select * from v_daily_consumption where created > (select max(created) from states where entity_id="sensor.synth");
 
 select * from states where entity_id="sensor.synth";
 
-
+# run this in a cronjob
 sqlite3 .homeassistant/home-assistant_v2.db 'insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) select * from v_daily_consumption where created > (select max(created) from states where entity_id="sensor.synth");'
 
