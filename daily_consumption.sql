@@ -1,41 +1,21 @@
 
-# test it with the the sqlite3 client attached to your home assistant db
 
-select * from states where entity_id="sensor.eta_total_consumption";
+# drop view v_daily_consumption;
 
-select state_id,created,state from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
-
-select state_id,created,state, ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10 
-from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
-
-
-
-# this view shows the daily consumption, to be injected back in the db as 'sensor.synth'
-
-create view v_daily_consumption as 
-select  "sensor","sensor.synth", ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10, '{"unit_of_measurement": "kg"}', last_changed, last_updated,created    
-from states 
-where entity_id="sensor.eta_total_consumption" group by substr(created,0,11) ;
+create view if not exists v_daily_consumption as  
+select substr(created,0,12) || "12:00:00" as created, state as last, ( state*10 -LAG ( state, 1, state ) OVER ( ORDER BY created)*10 )/10 as consumption from
+    (
+    select state_id, datetime(created, "-1 day") as created, state 
+    from states where entity_id="sensor.eta_total_consumption" group by substr(created,0,11)
+    union all 
+    select * from (select state_id, created, state
+    from states where entity_id="sensor.eta_total_consumption" order by created desc limit 1 )
+    );
 
 
-########################
-
-select * from states where entity_id="sensor.synth";
-select * from v_daily_consumption;
-select max(created) from states where entity_id="sensor.synth";
-
+DELETE FROM states WHERE entity_id="sensor.synth" and state_id = (SELECT MAX(state_id) FROM states WHERE entity_id="sensor.synth");
+delete from states where entity_id="sensor.synth" and event_id is not null;
 insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) 
-select * from v_daily_consumption limit 1;
-
-
-# 
-select ifnull( (select max(created) from states where entity_id="sensor.synth"),0 )
-
-insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) 
-select * from v_daily_consumption where created > ifnull( (select max(created) from states where entity_id="sensor.synth"),0 );
-
-select * from states where entity_id="sensor.synth";
-
-# run this in a cronjob
-sqlite3 .homeassistant/home-assistant_v2.db 'insert into states (domain, entity_id, state, attributes,last_changed,last_updated,created) select * from v_daily_consumption where created > ifnull( (select max(created) from states where entity_id="sensor.synth"),0 );'
-
+    select "sensor","sensor.synth", consumption as state, '{"unit_of_measurement": "kg"}', created, created, created 
+    from v_daily_consumption 
+    where created > ifnull( (select max(created) from states where entity_id="sensor.synth"),0 );
